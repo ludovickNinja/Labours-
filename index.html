@@ -342,6 +342,49 @@
     }
     .panel-delete-btn:hover { background: var(--red-light); color: var(--red); }
 
+    .panel-columns-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-hover);
+    }
+    .panel-col-name {
+      flex: 1;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+    .panel-col-preset {
+      width: 62px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .panel-col-action {
+      width: 28px;
+      flex-shrink: 0;
+    }
+    .panel-field-preset {
+      width: 62px;
+      flex-shrink: 0;
+      padding: 4px 6px !important;
+      font-size: 12px !important;
+      text-align: center;
+    }
+    .panel-add-preset {
+      width: 72px;
+      flex-shrink: 0;
+      text-align: center;
+    }
+
     .panel-add-area {
       padding: 12px 16px;
       border-top: 1px solid var(--border);
@@ -613,6 +656,10 @@
     <button class="btn btn-secondary" id="newTemplateBtn">+ New Template</button>
   </div>
   <div class="header-right">
+    <button class="btn btn-secondary" id="exportDbBtn" title="Download all fields and templates as JSON">↓ Export</button>
+    <button class="btn btn-secondary" id="importDbBtn" title="Restore fields and templates from a JSON file">↑ Import</button>
+    <input type="file" id="importFileInput" accept=".json,application/json" style="display:none" />
+    <div class="divider"></div>
     <button class="btn btn-link" id="editFieldsBtn">» Edit Labor Cost Fields</button>
   </div>
 </div>
@@ -648,9 +695,15 @@
       <span class="panel-title">Labor Cost Fields</span>
       <button class="panel-close-btn" id="panelCloseBtn" title="Close">✕</button>
     </div>
+    <div class="panel-columns-header">
+      <span class="panel-col-name">Field Name</span>
+      <span class="panel-col-preset">Default</span>
+      <span class="panel-col-action"></span>
+    </div>
     <div class="panel-fields-list" id="panelFieldsList"></div>
     <div class="panel-add-area">
       <input type="text" class="panel-add-input" id="newFieldInput" placeholder="New field name…" />
+      <input type="number" class="panel-add-preset" id="newFieldPreset" placeholder="0" min="0" step="0.01" title="Default value" />
       <button class="btn btn-primary" id="addFieldBtn">Add</button>
     </div>
   </div>
@@ -705,7 +758,7 @@ const DEFAULT_FIELD_NAMES = [
 ];
 
 function buildDefaultDB() {
-  const fields = DEFAULT_FIELD_NAMES.map((name, i) => ({ id: genId(), name, order: i }));
+  const fields = DEFAULT_FIELD_NAMES.map((name, i) => ({ id: genId(), name, order: i, defaultValue: 0 }));
   const findId = name => fields.find(f => f.name === name)?.id;
 
   const blackCobaltValues = {
@@ -755,10 +808,13 @@ function loadDB() {
     if (raw) {
       db = JSON.parse(raw);
       // Basic migration: ensure fieldValues exist for all fields
+      db.fields.forEach(f => {
+        if (f.defaultValue === undefined) f.defaultValue = 0;
+      });
       db.templates.forEach(t => {
         if (!t.fieldValues) t.fieldValues = {};
         db.fields.forEach(f => {
-          if (!t.fieldValues[f.id]) t.fieldValues[f.id] = { enabled: false, value: 0 };
+          if (!t.fieldValues[f.id]) t.fieldValues[f.id] = { enabled: false, value: f.defaultValue || 0 };
         });
       });
     } else {
@@ -789,7 +845,7 @@ function startEditing(templateId) {
   // Ensure all fields present
   db.fields.forEach(f => {
     if (!workingTemplate.fieldValues[f.id]) {
-      workingTemplate.fieldValues[f.id] = { enabled: false, value: 0 };
+      workingTemplate.fieldValues[f.id] = { enabled: false, value: f.defaultValue || 0 };
     }
   });
 }
@@ -863,7 +919,11 @@ function renderFieldsGrid() {
     cb.type = 'checkbox';
     cb.checked = fv.enabled;
     cb.addEventListener('change', () => {
-      workingTemplate.fieldValues[field.id].enabled = cb.checked;
+      const fv = workingTemplate.fieldValues[field.id];
+      fv.enabled = cb.checked;
+      if (cb.checked && fv.value === 0 && field.defaultValue) {
+        fv.value = field.defaultValue;
+      }
       renderFieldsGrid();
       renderTemplateBar();
     });
@@ -936,6 +996,19 @@ function renderSidePanel() {
       if (e.key === 'Escape') { nameEl.textContent = field.name; nameEl.blur(); }
     });
 
+    const presetInput = document.createElement('input');
+    presetInput.type = 'number';
+    presetInput.className = 'panel-field-preset';
+    presetInput.value = field.defaultValue || 0;
+    presetInput.min = '0';
+    presetInput.step = '0.01';
+    presetInput.title = 'Default value for this field';
+    presetInput.addEventListener('change', () => {
+      field.defaultValue = parseFloat(presetInput.value) || 0;
+      saveDB();
+    });
+    presetInput.addEventListener('click', e => e.stopPropagation());
+
     const delBtn = document.createElement('button');
     delBtn.className = 'panel-delete-btn';
     delBtn.innerHTML = trashIcon();
@@ -950,6 +1023,7 @@ function renderSidePanel() {
     });
 
     row.appendChild(nameEl);
+    row.appendChild(presetInput);
     row.appendChild(delBtn);
     list.appendChild(row);
   });
@@ -992,9 +1066,9 @@ document.getElementById('newTemplateBtn').addEventListener('click', () => {
   const name = prompt('Enter template name:');
   if (!name || !name.trim()) return;
 
-  // Build empty fieldValues
+  // Build empty fieldValues using each field's default value
   const fieldValues = {};
-  db.fields.forEach(f => { fieldValues[f.id] = { enabled: false, value: 0 }; });
+  db.fields.forEach(f => { fieldValues[f.id] = { enabled: false, value: f.defaultValue || 0 }; });
 
   const tmpl = { id: genId(), name: name.trim(), fieldValues };
   db.templates.push(tmpl);
@@ -1054,20 +1128,23 @@ document.getElementById('newFieldInput').addEventListener('keydown', e => {
 
 function addNewField() {
   const input = document.getElementById('newFieldInput');
+  const presetInput = document.getElementById('newFieldPreset');
   const name = input.value.trim();
   if (!name) return;
   if (db.fields.some(f => f.name.toLowerCase() === name.toLowerCase())) {
     alert('A field with that name already exists.');
     return;
   }
-  const newField = { id: genId(), name, order: db.fields.length };
+  const defaultValue = parseFloat(presetInput.value) || 0;
+  const newField = { id: genId(), name, order: db.fields.length, defaultValue };
   db.fields.push(newField);
-  // Add to all templates (disabled, value 0)
-  db.templates.forEach(t => { t.fieldValues[newField.id] = { enabled: false, value: 0 }; });
+  // Add to all templates (disabled, with default value)
+  db.templates.forEach(t => { t.fieldValues[newField.id] = { enabled: false, value: defaultValue }; });
   // Add to working template too
-  if (workingTemplate) workingTemplate.fieldValues[newField.id] = { enabled: false, value: 0 };
+  if (workingTemplate) workingTemplate.fieldValues[newField.id] = { enabled: false, value: defaultValue };
   saveDB();
   input.value = '';
+  presetInput.value = '';
   renderAll();
 }
 
@@ -1127,6 +1204,57 @@ document.getElementById('copyJsonBtn').addEventListener('click', () => {
     el.classList.add('show');
     setTimeout(() => el.classList.remove('show'), 2500);
   });
+});
+
+// ── Export / Import full database ────────────────────────────────────────────
+
+document.getElementById('exportDbBtn').addEventListener('click', () => {
+  const json = JSON.stringify(db, null, 2);
+  const date = new Date().toISOString().slice(0, 10);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `labour-cost-presets-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('importDbBtn').addEventListener('click', () => {
+  document.getElementById('importFileInput').click();
+});
+
+document.getElementById('importFileInput').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!Array.isArray(imported.fields) || !Array.isArray(imported.templates)) {
+        alert('Invalid file: expected an object with "fields" and "templates" arrays.');
+        return;
+      }
+      if (!confirm(`This will replace all current fields and templates with the data from "${file.name}". Continue?`)) return;
+      db = imported;
+      // Ensure migration fields
+      db.fields.forEach(f => { if (f.defaultValue === undefined) f.defaultValue = 0; });
+      db.templates.forEach(t => {
+        if (!t.fieldValues) t.fieldValues = {};
+        db.fields.forEach(f => {
+          if (!t.fieldValues[f.id]) t.fieldValues[f.id] = { enabled: false, value: f.defaultValue || 0 };
+        });
+      });
+      selectedTemplateId = null;
+      workingTemplate = null;
+      saveDB();
+      renderAll();
+    } catch {
+      alert('Could not read the file. Make sure it is a valid JSON export from this app.');
+    }
+  };
+  reader.readAsText(file);
+  this.value = ''; // reset so re-importing same file triggers change
 });
 
 // Keyboard: Escape closes modal / panel
