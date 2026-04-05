@@ -656,6 +656,10 @@
     <button class="btn btn-secondary" id="newTemplateBtn">+ New Template</button>
   </div>
   <div class="header-right">
+    <button class="btn btn-secondary" id="exportDbBtn" title="Download all fields and templates as JSON">↓ Export</button>
+    <button class="btn btn-secondary" id="importDbBtn" title="Restore fields and templates from a JSON file">↑ Import</button>
+    <input type="file" id="importFileInput" accept=".json,application/json" style="display:none" />
+    <div class="divider"></div>
     <button class="btn btn-link" id="editFieldsBtn">» Edit Labor Cost Fields</button>
   </div>
 </div>
@@ -1200,6 +1204,57 @@ document.getElementById('copyJsonBtn').addEventListener('click', () => {
     el.classList.add('show');
     setTimeout(() => el.classList.remove('show'), 2500);
   });
+});
+
+// ── Export / Import full database ────────────────────────────────────────────
+
+document.getElementById('exportDbBtn').addEventListener('click', () => {
+  const json = JSON.stringify(db, null, 2);
+  const date = new Date().toISOString().slice(0, 10);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `labour-cost-presets-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('importDbBtn').addEventListener('click', () => {
+  document.getElementById('importFileInput').click();
+});
+
+document.getElementById('importFileInput').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!Array.isArray(imported.fields) || !Array.isArray(imported.templates)) {
+        alert('Invalid file: expected an object with "fields" and "templates" arrays.');
+        return;
+      }
+      if (!confirm(`This will replace all current fields and templates with the data from "${file.name}". Continue?`)) return;
+      db = imported;
+      // Ensure migration fields
+      db.fields.forEach(f => { if (f.defaultValue === undefined) f.defaultValue = 0; });
+      db.templates.forEach(t => {
+        if (!t.fieldValues) t.fieldValues = {};
+        db.fields.forEach(f => {
+          if (!t.fieldValues[f.id]) t.fieldValues[f.id] = { enabled: false, value: f.defaultValue || 0 };
+        });
+      });
+      selectedTemplateId = null;
+      workingTemplate = null;
+      saveDB();
+      renderAll();
+    } catch {
+      alert('Could not read the file. Make sure it is a valid JSON export from this app.');
+    }
+  };
+  reader.readAsText(file);
+  this.value = ''; // reset so re-importing same file triggers change
 });
 
 // Keyboard: Escape closes modal / panel
