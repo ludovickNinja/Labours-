@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Labour Cost Presets</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-page:      #f5f5f7;
+      --bg-card:      #ffffff;
+      --bg-hover:     #f0f0f5;
+      --text-primary: #1d1d1f;
+      --text-muted:   #6e6e73;
+      --accent:       #0071e3;
+      --accent-hover: #0077ed;
+      --accent-light: #e8f1fd;
+      --border:       #d2d2d7;
+      --red:          #ff3b30;
+      --red-light:    #fff1f0;
+      --radius-card:  8px;
+      --radius-input: 6px;
+      --shadow:       0 1px 3px rgba(0,0,0,0.08);
+      --shadow-panel: 0 4px 24px rgba(0,0,0,0.12);
+      --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+      --transition: 0.2s ease;
+    }
+
+    html { font-size: 15px; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg-page);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.4;
+    }
+
+    /* ── Header ── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .header-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* ── Template Bar ── */
+    .template-bar {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .template-bar.hidden { display: none; }
+
+    .template-bar-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .unsaved-badge {
+      font-size: 11px;
+      font-weight: 500;
+      color: #ff9500;
+      background: #fff8ec;
+      border: 1px solid #ffcc80;
+      border-radius: 4px;
+      padding: 2px 7px;
+      display: none;
+    }
+    .unsaved-badge.visible { display: inline-block; }
+
+    /* ── Layout ── */
+    .app-body {
+      display: flex;
+      position: relative;
+      min-height: calc(100vh - 110px);
+    }
+
+    .main-content {
+      flex: 1;
+      padding: 20px;
+      min-width: 0;
+      transition: margin-right var(--transition);
+    }
+
+    /* ── Fields Grid ── */
+    .fields-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    @media (max-width: 1100px) { .fields-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 780px)  { .fields-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px)  { .fields-grid { grid-template-columns: 1fr; } }
+
+    .field-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--shadow);
+      transition: border-color var(--transition), box-shadow var(--transition);
+      cursor: default;
+      user-select: none;
+    }
+
+    .field-card:hover {
+      border-color: #b0b0b8;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    }
+
+    .field-card.is-enabled {
+      border-color: #a8c8f8;
+      background: #fafcff;
+    }
+
+    /* Custom Checkbox */
+    .cb-wrap {
+      position: relative;
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .cb-wrap input[type="checkbox"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .cb-visual {
+      display: block;
+      width: 18px;
+      height: 18px;
+      border: 1.5px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg-card);
+      transition: background var(--transition), border-color var(--transition);
+      position: relative;
+    }
+
+    .cb-wrap input:checked + .cb-visual {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .cb-wrap input:checked + .cb-visual::after {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 1.5px;
+      width: 5px;
+      height: 9px;
+      border: 2px solid #fff;
+      border-top: none;
+      border-left: none;
+      transform: rotate(45deg);
+    }
+
+    .cb-wrap:hover .cb-visual { border-color: var(--accent); }
+
+    /* Number Input */
+    .field-value-input {
+      width: 48px;
+      height: 26px;
+      padding: 0 6px;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent);
+      background: var(--accent-light);
+      border: 1px solid #b3d4f8;
+      border-radius: var(--radius-input);
+      text-align: center;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      -moz-appearance: textfield;
+      flex-shrink: 0;
+    }
+
+    .field-value-input::-webkit-inner-spin-button,
+    .field-value-input::-webkit-outer-spin-button { display: none; }
+
+    .field-value-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,113,227,0.15);
+    }
+
+    .field-name {
+      font-size: 13px;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      transition: color var(--transition);
+    }
+
+    .field-card.is-enabled .field-name { color: var(--text-primary); font-weight: 500; }
+    .field-card:not(.is-enabled) .field-name { color: var(--text-muted); }
+
+    /* ── Side Panel ── */
+    .side-panel {
+      width: 320px;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 55px;
+      height: calc(100vh - 55px);
+      overflow: hidden;
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      flex-shrink: 0;
+      width: 0;
+    }
+
+    .side-panel.open {
+      transform: translateX(0);
+      width: 320px;
+    }
+
+    .panel-header {
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .panel-close-btn {
+      background: none;
+      border: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 16px;
+      transition: background var(--transition), color var(--transition);
+    }
+    .panel-close-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    .panel-fields-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .panel-field-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      transition: background var(--transition);
+    }
+    .panel-field-row:hover { background: var(--bg-hover); }
+
+    .panel-field-name {
+      flex: 1;
+      font-size: 13.5px;
+      color: var(--text-primary);
+      cursor: pointer;
+      border-radius: 4px;
+      padding: 2px 4px;
+      outline: none;
+    }
+
+    .panel-field-name[contenteditable="true"] {
+      background: var(--accent-light);
+      border: 1px solid var(--accent);
+      padding: 2px 6px;
+    }
+
+    .panel-delete-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: background var(--transition), color var(--transition);
+      flex-shrink: 0;
+    }
+    .panel-delete-btn:hover { background: var(--red-light); color: var(--red); }
+
+    .panel-add-area {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: var(--radius-input);
+      padding: 7px 14px;
+      cursor: pointer;
+      transition: background var(--transition), color var(--transition), box-shadow var(--transition), border-color var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+    }
+    .btn-primary:hover { background: var(--accent-hover); box-shadow: 0 2px 8px rgba(0,113,227,0.3); }
+    .btn-primary:active { background: #005cbf; }
+
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--bg-hover); border-color: #b0b0b8; }
+
+    .btn-destructive {
+      background: var(--red-light);
+      color: var(--red);
+      border: 1px solid #ffb3af;
+    }
+    .btn-destructive:hover { background: #ffe5e4; border-color: var(--red); }
+
+    .btn-outlined {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+    .btn-outlined:hover { background: var(--accent-light); }
+
+    .btn-link {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 7px 10px;
+      border-radius: var(--radius-input);
+      transition: background var(--transition);
+    }
+    .btn-link:hover { background: var(--accent-light); }
+    .btn-link.active { background: var(--accent-light); }
+
+    /* ── Inputs / Select ── */
+    input[type="text"],
+    input[type="number"] {
+      font-family: var(--font);
+      font-size: 13.5px;
+      color: var(--text-primary);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-input);
+      padding: 7px 10px;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,113,227,0.12);
+    }
+
+    select {
+      font-family: var(--font);
+      font-size: 13.5px;
+      color: var(--text-primary);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-input);
+      padding: 7px 28px 7px 10px;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236e6e73' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 9px center;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      min-width: 180px;
+    }
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,113,227,0.12);
+    }
+
+    #templateNameInput {
+      width: 220px;
+    }
+
+    .panel-add-input {
+      flex: 1;
+      font-family: var(--font);
+      font-size: 13px;
+      color: var(--text-primary);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-input);
+      padding: 7px 10px;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .panel-add-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,113,227,0.12);
+    }
+
+    /* ── Empty State ── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+    .empty-state h3 { font-size: 17px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+    .empty-state p { font-size: 14px; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: var(--bg-card);
+      border-radius: 12px;
+      width: 520px;
+      max-width: calc(100vw - 40px);
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+      transform: scale(0.96) translateY(8px);
+      transition: transform 0.2s ease;
+    }
+    .modal-overlay.open .modal { transform: scale(1) translateY(0); }
+
+    .modal-header {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-title { font-size: 16px; font-weight: 600; }
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+    }
+    .modal-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .json-output {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      background: #1c1c1e;
+      color: #e5e5ea;
+      border-radius: 8px;
+      padding: 16px;
+      white-space: pre;
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: 380px;
+    }
+
+    .copy-success {
+      color: #30d158;
+      font-size: 12px;
+      font-weight: 500;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .copy-success.show { opacity: 1; }
+
+    /* ── Page title ── */
+    .page-title-area {
+      padding: 20px 20px 0;
+    }
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
+    }
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 16px 20px 8px;
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #c0c0c8; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a0a0a8; }
+
+    /* ── Divider ── */
+    .divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <span class="header-label">Template:</span>
+    <select id="templateSelect">
+      <option value="">— Select a template —</option>
+    </select>
+    <button class="btn btn-secondary" id="newTemplateBtn">+ New Template</button>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-link" id="editFieldsBtn">» Edit Labor Cost Fields</button>
+  </div>
+</div>
+
+<!-- Template Bar -->
+<div class="template-bar hidden" id="templateBar">
+  <span class="template-bar-label">Template Name:</span>
+  <input type="text" id="templateNameInput" placeholder="Template name…" />
+  <button class="btn btn-primary" id="saveTemplateBtn">Save Template</button>
+  <span class="unsaved-badge" id="unsavedBadge">Unsaved changes</span>
+  <button class="btn btn-destructive" id="deleteTemplateBtn">Delete Template</button>
+  <div style="flex:1"></div>
+  <button class="btn btn-outlined" id="updateAllRingsBtn">Update all rings</button>
+</div>
+
+<!-- App Body -->
+<div class="app-body" id="appBody">
+  <div class="main-content" id="mainContent">
+    <div id="noTemplateMsg" class="empty-state">
+      <div class="empty-state-icon">⚙️</div>
+      <h3>No Template Selected</h3>
+      <p>Select a template from the dropdown above, or create a new one to get started.</p>
+    </div>
+    <div id="fieldsArea" style="display:none">
+      <div class="section-label" id="sectionLabel">Fields</div>
+      <div class="fields-grid" id="fieldsGrid"></div>
+    </div>
+  </div>
+
+  <!-- Side Panel -->
+  <div class="side-panel" id="sidePanel">
+    <div class="panel-header">
+      <span class="panel-title">Labor Cost Fields</span>
+      <button class="panel-close-btn" id="panelCloseBtn" title="Close">✕</button>
+    </div>
+    <div class="panel-fields-list" id="panelFieldsList"></div>
+    <div class="panel-add-area">
+      <input type="text" class="panel-add-input" id="newFieldInput" placeholder="New field name…" />
+      <button class="btn btn-primary" id="addFieldBtn">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="exportModalTitle">Export — Template Data</span>
+      <button class="panel-close-btn" id="exportModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <pre class="json-output" id="exportJsonOutput"></pre>
+    </div>
+    <div class="modal-footer">
+      <span class="copy-success" id="copySuccess">Copied to clipboard!</span>
+      <button class="btn btn-secondary" id="copyJsonBtn">Copy to Clipboard</button>
+      <button class="btn btn-primary" id="exportModalCloseBtn">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+
+function genId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
+function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+// ── Default Data ─────────────────────────────────────────────────────────────
+
+const DEFAULT_FIELD_NAMES = [
+  'ADV','Advertising','Ajax Cut','Beliere 10k','Benziger','Black Carbon',
+  'Black Cobalt Click','Black Rhodium','Cad','Cad Print','Carlex MFT','Casting',
+  'Chain','China Import Cost','Click System','Cobalt Material','Damascus Steel Blank',
+  "Duty's",'Enamel','Engraving','Extra','Extra refining charge','Findings',
+  'G3','G3-Sport','Gift Box','Gold @2000oz','Hammer','Jeweller','Kutez Manual',
+  'Labor','Labor for Gold Inlay','Labor for inlay on Cobalt','Laser Engraving Pattern',
+  'PD MFT','PD Polish','PD Surcharge','PD Tools','Polishing','Posalux',
+  'Posalux Diamond PreSet','PT MFT','PT Polish','PT Surcharge','PT Tools',
+  'PVD Coating','Rhodium','Shipping','Silver','Solidscape Print','Spiff',
+  'Tantalum Blank','Titanium Material','Tungsten Material','Wax Material'
+];
+
+function buildDefaultDB() {
+  const fields = DEFAULT_FIELD_NAMES.map((name, i) => ({ id: genId(), name, order: i }));
+  const findId = name => fields.find(f => f.name === name)?.id;
+
+  const blackCobaltValues = {
+    'ADV':                      { enabled: true, value: 0 },
+    'Ajax Cut':                 { enabled: true, value: 0 },
+    'Benziger':                 { enabled: true, value: 0 },
+    'Click System':             { enabled: true, value: 12 },
+    'Cobalt Material':          { enabled: true, value: 6 },
+    'Hammer':                   { enabled: true, value: 0 },
+    'Kutez Manual':             { enabled: true, value: 6 },
+    'Labor':                    { enabled: true, value: 0 },
+    'Laser Engraving Pattern':  { enabled: true, value: 0 },
+    'Polishing':                { enabled: true, value: 4 },
+    'Posalux':                  { enabled: true, value: 5 },
+    'PVD Coating':              { enabled: true, value: 0 },
+  };
+
+  const fieldValues = {};
+  fields.forEach(f => {
+    const preset = blackCobaltValues[f.name];
+    fieldValues[f.id] = preset
+      ? { enabled: true, value: preset.value }
+      : { enabled: false, value: 0 };
+  });
+
+  const templates = [{
+    id: genId(),
+    name: 'Black Cobalt',
+    fieldValues
+  }];
+
+  return { fields, templates };
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+const DB_KEY = 'labourCostDB';
+
+let db = null;
+let selectedTemplateId = null;
+let workingTemplate = null; // in-memory editable copy
+let panelOpen = false;
+
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    if (raw) {
+      db = JSON.parse(raw);
+      // Basic migration: ensure fieldValues exist for all fields
+      db.templates.forEach(t => {
+        if (!t.fieldValues) t.fieldValues = {};
+        db.fields.forEach(f => {
+          if (!t.fieldValues[f.id]) t.fieldValues[f.id] = { enabled: false, value: 0 };
+        });
+      });
+    } else {
+      db = buildDefaultDB();
+      saveDB();
+    }
+  } catch (e) {
+    db = buildDefaultDB();
+    saveDB();
+  }
+}
+
+function saveDB() {
+  localStorage.setItem(DB_KEY, JSON.stringify(db));
+}
+
+function sortedFields() {
+  return [...db.fields].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// ── Working Template Helpers ──────────────────────────────────────────────────
+
+function startEditing(templateId) {
+  selectedTemplateId = templateId;
+  const tmpl = db.templates.find(t => t.id === templateId);
+  if (!tmpl) { workingTemplate = null; return; }
+  workingTemplate = deepClone(tmpl);
+  // Ensure all fields present
+  db.fields.forEach(f => {
+    if (!workingTemplate.fieldValues[f.id]) {
+      workingTemplate.fieldValues[f.id] = { enabled: false, value: 0 };
+    }
+  });
+}
+
+function isUnsaved() {
+  if (!workingTemplate || !selectedTemplateId) return false;
+  const saved = db.templates.find(t => t.id === selectedTemplateId);
+  if (!saved) return true;
+  return JSON.stringify(workingTemplate) !== JSON.stringify(saved);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+
+function renderTemplateSelect() {
+  const sel = document.getElementById('templateSelect');
+  const currentVal = sel.value;
+  sel.innerHTML = '<option value="">— Select a template —</option>';
+  db.templates
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = t.name;
+      sel.appendChild(opt);
+    });
+  if (selectedTemplateId) sel.value = selectedTemplateId;
+}
+
+function renderTemplateBar() {
+  const bar = document.getElementById('templateBar');
+  if (!workingTemplate) {
+    bar.classList.add('hidden');
+    return;
+  }
+  bar.classList.remove('hidden');
+  document.getElementById('templateNameInput').value = workingTemplate.name;
+  const badge = document.getElementById('unsavedBadge');
+  badge.classList.toggle('visible', isUnsaved());
+}
+
+function renderFieldsGrid() {
+  const area = document.getElementById('fieldsArea');
+  const noMsg = document.getElementById('noTemplateMsg');
+
+  if (!workingTemplate) {
+    area.style.display = 'none';
+    noMsg.style.display = '';
+    return;
+  }
+  area.style.display = '';
+  noMsg.style.display = 'none';
+
+  document.getElementById('sectionLabel').textContent =
+    `${workingTemplate.name} — Fields`;
+
+  const grid = document.getElementById('fieldsGrid');
+  grid.innerHTML = '';
+
+  const fields = sortedFields();
+  fields.forEach(field => {
+    const fv = workingTemplate.fieldValues[field.id] || { enabled: false, value: 0 };
+    const card = document.createElement('div');
+    card.className = 'field-card' + (fv.enabled ? ' is-enabled' : '');
+    card.dataset.fieldId = field.id;
+
+    // Checkbox
+    const cbWrap = document.createElement('label');
+    cbWrap.className = 'cb-wrap';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = fv.enabled;
+    cb.addEventListener('change', () => {
+      workingTemplate.fieldValues[field.id].enabled = cb.checked;
+      renderFieldsGrid();
+      renderTemplateBar();
+    });
+    const cbVisual = document.createElement('span');
+    cbVisual.className = 'cb-visual';
+    cbWrap.appendChild(cb);
+    cbWrap.appendChild(cbVisual);
+
+    // Value input (only when enabled)
+    const valInput = document.createElement('input');
+    valInput.type = 'number';
+    valInput.className = 'field-value-input';
+    valInput.value = fv.value;
+    valInput.style.display = fv.enabled ? '' : 'none';
+    valInput.addEventListener('input', () => {
+      workingTemplate.fieldValues[field.id].value = parseFloat(valInput.value) || 0;
+      renderTemplateBar();
+    });
+    valInput.addEventListener('click', e => e.stopPropagation());
+
+    // Name label
+    const nameEl = document.createElement('span');
+    nameEl.className = 'field-name';
+    nameEl.textContent = field.name;
+    nameEl.title = field.name;
+
+    card.appendChild(cbWrap);
+    card.appendChild(valInput);
+    card.appendChild(nameEl);
+    grid.appendChild(card);
+  });
+}
+
+function renderSidePanel() {
+  const list = document.getElementById('panelFieldsList');
+  list.innerHTML = '';
+  sortedFields().forEach(field => {
+    const row = document.createElement('div');
+    row.className = 'panel-field-row';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'panel-field-name';
+    nameEl.textContent = field.name;
+    nameEl.title = 'Double-click to rename';
+
+    nameEl.addEventListener('dblclick', () => {
+      nameEl.contentEditable = 'true';
+      nameEl.focus();
+      const range = document.createRange();
+      range.selectNodeContents(nameEl);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+    });
+
+    nameEl.addEventListener('blur', () => {
+      const newName = nameEl.textContent.trim();
+      nameEl.contentEditable = 'false';
+      if (newName && newName !== field.name) {
+        field.name = newName;
+        saveDB();
+        renderFieldsGrid();
+        renderSidePanel();
+      } else {
+        nameEl.textContent = field.name;
+      }
+    });
+
+    nameEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); }
+      if (e.key === 'Escape') { nameEl.textContent = field.name; nameEl.blur(); }
+    });
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'panel-delete-btn';
+    delBtn.innerHTML = trashIcon();
+    delBtn.title = 'Delete field';
+    delBtn.addEventListener('click', () => {
+      if (!confirm(`Delete field "${field.name}"? This will remove it from all templates.`)) return;
+      db.fields = db.fields.filter(f => f.id !== field.id);
+      db.templates.forEach(t => { delete t.fieldValues[field.id]; });
+      if (workingTemplate) delete workingTemplate.fieldValues[field.id];
+      saveDB();
+      renderAll();
+    });
+
+    row.appendChild(nameEl);
+    row.appendChild(delBtn);
+    list.appendChild(row);
+  });
+}
+
+function renderAll() {
+  renderTemplateSelect();
+  renderTemplateBar();
+  renderFieldsGrid();
+  if (panelOpen) renderSidePanel();
+}
+
+// ── SVG Icons ──────────────────────────────────────────────────────────────────
+
+function trashIcon() {
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+  </svg>`;
+}
+
+// ── Event Handlers ─────────────────────────────────────────────────────────────
+
+document.getElementById('templateSelect').addEventListener('change', function () {
+  if (this.value) {
+    if (workingTemplate && isUnsaved()) {
+      if (!confirm('You have unsaved changes. Discard and switch templates?')) {
+        this.value = selectedTemplateId || '';
+        return;
+      }
+    }
+    startEditing(this.value);
+  } else {
+    selectedTemplateId = null;
+    workingTemplate = null;
+  }
+  renderAll();
+});
+
+document.getElementById('newTemplateBtn').addEventListener('click', () => {
+  const name = prompt('Enter template name:');
+  if (!name || !name.trim()) return;
+
+  // Build empty fieldValues
+  const fieldValues = {};
+  db.fields.forEach(f => { fieldValues[f.id] = { enabled: false, value: 0 }; });
+
+  const tmpl = { id: genId(), name: name.trim(), fieldValues };
+  db.templates.push(tmpl);
+  saveDB();
+  startEditing(tmpl.id);
+  renderAll();
+});
+
+document.getElementById('templateNameInput').addEventListener('input', function () {
+  if (!workingTemplate) return;
+  workingTemplate.name = this.value;
+  renderTemplateBar();
+});
+
+document.getElementById('saveTemplateBtn').addEventListener('click', () => {
+  if (!workingTemplate) return;
+  const idx = db.templates.findIndex(t => t.id === workingTemplate.id);
+  if (idx === -1) {
+    db.templates.push(deepClone(workingTemplate));
+  } else {
+    db.templates[idx] = deepClone(workingTemplate);
+  }
+  selectedTemplateId = workingTemplate.id;
+  saveDB();
+  renderAll();
+});
+
+document.getElementById('deleteTemplateBtn').addEventListener('click', () => {
+  if (!workingTemplate) return;
+  if (!confirm(`Delete template "${workingTemplate.name}"? This cannot be undone.`)) return;
+  db.templates = db.templates.filter(t => t.id !== workingTemplate.id);
+  selectedTemplateId = null;
+  workingTemplate = null;
+  saveDB();
+  renderAll();
+});
+
+// Edit Fields Panel toggle
+document.getElementById('editFieldsBtn').addEventListener('click', function () {
+  panelOpen = !panelOpen;
+  document.getElementById('sidePanel').classList.toggle('open', panelOpen);
+  this.classList.toggle('active', panelOpen);
+  if (panelOpen) renderSidePanel();
+});
+
+document.getElementById('panelCloseBtn').addEventListener('click', () => {
+  panelOpen = false;
+  document.getElementById('sidePanel').classList.remove('open');
+  document.getElementById('editFieldsBtn').classList.remove('active');
+});
+
+// Add field
+document.getElementById('addFieldBtn').addEventListener('click', addNewField);
+document.getElementById('newFieldInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addNewField();
+});
+
+function addNewField() {
+  const input = document.getElementById('newFieldInput');
+  const name = input.value.trim();
+  if (!name) return;
+  if (db.fields.some(f => f.name.toLowerCase() === name.toLowerCase())) {
+    alert('A field with that name already exists.');
+    return;
+  }
+  const newField = { id: genId(), name, order: db.fields.length };
+  db.fields.push(newField);
+  // Add to all templates (disabled, value 0)
+  db.templates.forEach(t => { t.fieldValues[newField.id] = { enabled: false, value: 0 }; });
+  // Add to working template too
+  if (workingTemplate) workingTemplate.fieldValues[newField.id] = { enabled: false, value: 0 };
+  saveDB();
+  input.value = '';
+  renderAll();
+}
+
+// Export / Update all rings
+document.getElementById('updateAllRingsBtn').addEventListener('click', openExportModal);
+
+function openExportModal() {
+  if (!workingTemplate) return;
+
+  const fields = sortedFields();
+  const exportData = {
+    template: workingTemplate.name,
+    fields: {}
+  };
+  fields.forEach(f => {
+    const fv = workingTemplate.fieldValues[f.id];
+    if (fv && fv.enabled) {
+      exportData.fields[f.name] = fv.value;
+    }
+  });
+
+  document.getElementById('exportModalTitle').textContent =
+    `Export — ${workingTemplate.name}`;
+  document.getElementById('exportJsonOutput').textContent =
+    JSON.stringify(exportData, null, 2);
+  document.getElementById('copySuccess').classList.remove('show');
+  document.getElementById('exportModal').classList.add('open');
+}
+
+document.getElementById('exportModalClose').addEventListener('click', closeExportModal);
+document.getElementById('exportModalCloseBtn').addEventListener('click', closeExportModal);
+document.getElementById('exportModal').addEventListener('click', function (e) {
+  if (e.target === this) closeExportModal();
+});
+
+function closeExportModal() {
+  document.getElementById('exportModal').classList.remove('open');
+}
+
+document.getElementById('copyJsonBtn').addEventListener('click', () => {
+  const text = document.getElementById('exportJsonOutput').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById('copySuccess');
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2500);
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const el = document.getElementById('copySuccess');
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2500);
+  });
+});
+
+// Keyboard: Escape closes modal / panel
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('exportModal').classList.contains('open')) {
+      closeExportModal();
+    } else if (panelOpen) {
+      panelOpen = false;
+      document.getElementById('sidePanel').classList.remove('open');
+      document.getElementById('editFieldsBtn').classList.remove('active');
+    }
+  }
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+
+loadDB();
+
+// Auto-select Black Cobalt on first load
+const blackCobalt = db.templates.find(t => t.name === 'Black Cobalt');
+if (blackCobalt) {
+  startEditing(blackCobalt.id);
+}
+
+renderAll();
+</script>
+</body>
+</html>
