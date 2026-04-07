@@ -642,6 +642,68 @@
       flex-shrink: 0;
     }
 
+    /* ── Category Group Headers (main grid) ── */
+    .category-header {
+      grid-column: 1 / -1;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--accent);
+      padding: 16px 4px 6px;
+      border-bottom: 2px solid var(--accent-light);
+      margin-bottom: 2px;
+    }
+    .category-header:first-child { padding-top: 4px; }
+
+    /* ── Category Group Headers (side panel) ── */
+    .panel-category-header {
+      padding: 10px 16px 5px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-light);
+      border-top: 1px solid var(--border);
+    }
+    .panel-category-header:first-child { border-top: none; }
+
+    /* Category select in panel rows */
+    .panel-field-cat {
+      width: 96px;
+      flex-shrink: 0;
+      font-size: 11px;
+      padding: 3px 20px 3px 5px !important;
+      min-width: unset;
+      background-position: right 4px center;
+      background-size: 10px 7px;
+    }
+
+    /* Category column header */
+    .panel-col-cat {
+      width: 96px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    /* Add area — allow wrapping for category row */
+    .panel-add-area {
+      flex-wrap: wrap;
+      row-gap: 6px;
+    }
+    .panel-add-cat {
+      width: 100%;
+      flex-shrink: 0;
+      font-size: 12px;
+      padding: 5px 24px 5px 8px !important;
+      min-width: unset;
+    }
+
   </style>
 </head>
 <body>
@@ -697,14 +759,16 @@
     </div>
     <div class="panel-columns-header">
       <span class="panel-col-name">Field Name</span>
+      <span class="panel-col-cat">Category</span>
       <span class="panel-col-preset">Default</span>
       <span class="panel-col-action"></span>
     </div>
     <div class="panel-fields-list" id="panelFieldsList"></div>
     <div class="panel-add-area">
-      <input type="text" class="panel-add-input" id="newFieldInput" placeholder="New field name…" />
+      <input type="text" class="panel-add-input" id="newFieldInput" placeholder="New field name…" style="flex:1" />
       <input type="number" class="panel-add-preset" id="newFieldPreset" placeholder="0" min="0" step="0.01" title="Default value" />
       <button class="btn btn-primary" id="addFieldBtn">Add</button>
+      <select class="panel-add-cat" id="newFieldCategory" title="Category"></select>
     </div>
   </div>
 </div>
@@ -744,21 +808,75 @@ function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
 // ── Default Data ─────────────────────────────────────────────────────────────
 
-const DEFAULT_FIELD_NAMES = [
-  'ADV','Advertising','Ajax Cut','Beliere 10k','Benziger','Black Carbon',
-  'Black Cobalt Click','Black Rhodium','Cad','Cad Print','Carlex MFT','Casting',
-  'Chain','China Import Cost','Click System','Cobalt Material','Damascus Steel Blank',
-  "Duty's",'Enamel','Engraving','Extra','Extra refining charge','Findings',
-  'G3','G3-Sport','Gift Box','Gold @2000oz','Hammer','Jeweller','Kutez Manual',
-  'Labor','Labor for Gold Inlay','Labor for inlay on Cobalt','Laser Engraving Pattern',
-  'PD MFT','PD Polish','PD Surcharge','PD Tools','Polishing','Posalux',
-  'Posalux Diamond PreSet','PT MFT','PT Polish','PT Surcharge','PT Tools',
-  'PVD Coating','Rhodium','Shipping','Silver','Solidscape Print','Spiff',
-  'Tantalum Blank','Titanium Material','Tungsten Material','Wax Material'
+const CATEGORIES = [
+  'Administration',
+  'CAD & Design',
+  'Labour',
+  'Materials',
+  'MFT & Tools',
+  'Plating & Finishing',
+];
+
+const DEFAULT_FIELDS = [
+  { name: 'ADV',                       category: 'Administration'    },
+  { name: 'Advertising',               category: 'Administration'    },
+  { name: 'Ajax Cut',                  category: 'Labour'            },
+  { name: 'Beliere 10k',               category: 'Materials'         },
+  { name: 'Benziger',                  category: 'Materials'         },
+  { name: 'Black Carbon',              category: 'Materials'         },
+  { name: 'Black Cobalt Click',        category: 'Plating & Finishing' },
+  { name: 'Black Rhodium',             category: 'Plating & Finishing' },
+  { name: 'Cad',                       category: 'CAD & Design'      },
+  { name: 'Cad Print',                 category: 'CAD & Design'      },
+  { name: 'Carlex MFT',               category: 'MFT & Tools'       },
+  { name: 'Casting',                   category: 'Labour'            },
+  { name: 'Chain',                     category: 'Materials'         },
+  { name: 'China Import Cost',         category: 'Administration'    },
+  { name: 'Click System',              category: 'Plating & Finishing' },
+  { name: 'Cobalt Material',           category: 'Materials'         },
+  { name: 'Damascus Steel Blank',      category: 'Materials'         },
+  { name: "Duty's",                    category: 'Administration'    },
+  { name: 'Enamel',                    category: 'Plating & Finishing' },
+  { name: 'Engraving',                 category: 'Labour'            },
+  { name: 'Extra',                     category: 'Administration'    },
+  { name: 'Extra refining charge',     category: 'Administration'    },
+  { name: 'Findings',                  category: 'Materials'         },
+  { name: 'G3',                        category: 'CAD & Design'      },
+  { name: 'G3-Sport',                  category: 'CAD & Design'      },
+  { name: 'Gift Box',                  category: 'Administration'    },
+  { name: 'Gold @2000oz',              category: 'Materials'         },
+  { name: 'Hammer',                    category: 'Labour'            },
+  { name: 'Jeweller',                  category: 'Labour'            },
+  { name: 'Kutez Manual',              category: 'Labour'            },
+  { name: 'Labor',                     category: 'Labour'            },
+  { name: 'Labor for Gold Inlay',      category: 'Labour'            },
+  { name: 'Labor for inlay on Cobalt', category: 'Labour'            },
+  { name: 'Laser Engraving Pattern',   category: 'Labour'            },
+  { name: 'PD MFT',                    category: 'MFT & Tools'       },
+  { name: 'PD Polish',                 category: 'Plating & Finishing' },
+  { name: 'PD Surcharge',              category: 'MFT & Tools'       },
+  { name: 'PD Tools',                  category: 'MFT & Tools'       },
+  { name: 'Polishing',                 category: 'Labour'            },
+  { name: 'Posalux',                   category: 'Labour'            },
+  { name: 'Posalux Diamond PreSet',    category: 'Labour'            },
+  { name: 'PT MFT',                    category: 'MFT & Tools'       },
+  { name: 'PT Polish',                 category: 'Plating & Finishing' },
+  { name: 'PT Surcharge',              category: 'MFT & Tools'       },
+  { name: 'PT Tools',                  category: 'MFT & Tools'       },
+  { name: 'PVD Coating',               category: 'Plating & Finishing' },
+  { name: 'Rhodium',                   category: 'Materials'         },
+  { name: 'Shipping',                  category: 'Administration'    },
+  { name: 'Silver',                    category: 'Materials'         },
+  { name: 'Solidscape Print',          category: 'CAD & Design'      },
+  { name: 'Spiff',                     category: 'Administration'    },
+  { name: 'Tantalum Blank',            category: 'Materials'         },
+  { name: 'Titanium Material',         category: 'Materials'         },
+  { name: 'Tungsten Material',         category: 'Materials'         },
+  { name: 'Wax Material',              category: 'Materials'         },
 ];
 
 function buildDefaultDB() {
-  const fields = DEFAULT_FIELD_NAMES.map((name, i) => ({ id: genId(), name, order: i, defaultValue: 0 }));
+  const fields = DEFAULT_FIELDS.map(({ name, category }, i) => ({ id: genId(), name, category, order: i, defaultValue: 0 }));
   const findId = name => fields.find(f => f.name === name)?.id;
 
   const blackCobaltValues = {
@@ -810,6 +928,7 @@ function loadDB() {
       // Basic migration: ensure fieldValues exist for all fields
       db.fields.forEach(f => {
         if (f.defaultValue === undefined) f.defaultValue = 0;
+        if (!f.category) f.category = 'Labour';
       });
       db.templates.forEach(t => {
         if (!t.fieldValues) t.fieldValues = {};
@@ -906,7 +1025,16 @@ function renderFieldsGrid() {
   grid.innerHTML = '';
 
   const fields = sortedFields();
+
+  // Group fields by category
+  const grouped = {};
   fields.forEach(field => {
+    const cat = field.category || 'Other';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(field);
+  });
+
+  function makeFieldCard(field) {
     const fv = workingTemplate.fieldValues[field.id] || { enabled: false, value: 0 };
     const card = document.createElement('div');
     card.className = 'field-card' + (fv.enabled ? ' is-enabled' : '');
@@ -953,79 +1081,144 @@ function renderFieldsGrid() {
     card.appendChild(cbWrap);
     card.appendChild(valInput);
     card.appendChild(nameEl);
-    grid.appendChild(card);
+    return card;
+  }
+
+  // Render each category group
+  const catOrder = CATEGORIES.concat(
+    Object.keys(grouped).filter(c => !CATEGORIES.includes(c)).sort()
+  );
+  catOrder.forEach(category => {
+    if (!grouped[category]) return;
+    const hdr = document.createElement('div');
+    hdr.className = 'category-header';
+    hdr.textContent = category;
+    grid.appendChild(hdr);
+    grouped[category].forEach(field => grid.appendChild(makeFieldCard(field)));
   });
+}
+
+function makeCategorySelect(field) {
+  const sel = document.createElement('select');
+  sel.className = 'panel-field-cat';
+  sel.title = 'Change category';
+  const allCats = CATEGORIES.concat(
+    field.category && !CATEGORIES.includes(field.category) ? [field.category] : []
+  );
+  allCats.forEach(cat => {
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    if (cat === (field.category || 'Labour')) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', () => {
+    field.category = sel.value;
+    saveDB();
+    renderFieldsGrid();
+    renderSidePanel();
+  });
+  sel.addEventListener('click', e => e.stopPropagation());
+  return sel;
 }
 
 function renderSidePanel() {
   const list = document.getElementById('panelFieldsList');
   list.innerHTML = '';
-  sortedFields().forEach(field => {
-    const row = document.createElement('div');
-    row.className = 'panel-field-row';
 
-    const nameEl = document.createElement('span');
-    nameEl.className = 'panel-field-name';
-    nameEl.textContent = field.name;
-    nameEl.title = 'Double-click to rename';
+  const fields = sortedFields();
 
-    nameEl.addEventListener('dblclick', () => {
-      nameEl.contentEditable = 'true';
-      nameEl.focus();
-      const range = document.createRange();
-      range.selectNodeContents(nameEl);
-      window.getSelection().removeAllRanges();
-      window.getSelection().addRange(range);
-    });
+  // Group by category
+  const grouped = {};
+  fields.forEach(field => {
+    const cat = field.category || 'Other';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(field);
+  });
 
-    nameEl.addEventListener('blur', () => {
-      const newName = nameEl.textContent.trim();
-      nameEl.contentEditable = 'false';
-      if (newName && newName !== field.name) {
-        field.name = newName;
+  const catOrder = CATEGORIES.concat(
+    Object.keys(grouped).filter(c => !CATEGORIES.includes(c)).sort()
+  );
+
+  catOrder.forEach(category => {
+    if (!grouped[category]) return;
+
+    // Category group header
+    const catHdr = document.createElement('div');
+    catHdr.className = 'panel-category-header';
+    catHdr.textContent = category;
+    list.appendChild(catHdr);
+
+    grouped[category].forEach(field => {
+      const row = document.createElement('div');
+      row.className = 'panel-field-row';
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'panel-field-name';
+      nameEl.textContent = field.name;
+      nameEl.title = 'Double-click to rename';
+
+      nameEl.addEventListener('dblclick', () => {
+        nameEl.contentEditable = 'true';
+        nameEl.focus();
+        const range = document.createRange();
+        range.selectNodeContents(nameEl);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+      });
+
+      nameEl.addEventListener('blur', () => {
+        const newName = nameEl.textContent.trim();
+        nameEl.contentEditable = 'false';
+        if (newName && newName !== field.name) {
+          field.name = newName;
+          saveDB();
+          renderFieldsGrid();
+          renderSidePanel();
+        } else {
+          nameEl.textContent = field.name;
+        }
+      });
+
+      nameEl.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); }
+        if (e.key === 'Escape') { nameEl.textContent = field.name; nameEl.blur(); }
+      });
+
+      const catSel = makeCategorySelect(field);
+
+      const presetInput = document.createElement('input');
+      presetInput.type = 'number';
+      presetInput.className = 'panel-field-preset';
+      presetInput.value = field.defaultValue || 0;
+      presetInput.min = '0';
+      presetInput.step = '0.01';
+      presetInput.title = 'Default value for this field';
+      presetInput.addEventListener('change', () => {
+        field.defaultValue = parseFloat(presetInput.value) || 0;
         saveDB();
-        renderFieldsGrid();
-        renderSidePanel();
-      } else {
-        nameEl.textContent = field.name;
-      }
-    });
+      });
+      presetInput.addEventListener('click', e => e.stopPropagation());
 
-    nameEl.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); }
-      if (e.key === 'Escape') { nameEl.textContent = field.name; nameEl.blur(); }
-    });
+      const delBtn = document.createElement('button');
+      delBtn.className = 'panel-delete-btn';
+      delBtn.innerHTML = trashIcon();
+      delBtn.title = 'Delete field';
+      delBtn.addEventListener('click', () => {
+        if (!confirm(`Delete field "${field.name}"? This will remove it from all templates.`)) return;
+        db.fields = db.fields.filter(f => f.id !== field.id);
+        db.templates.forEach(t => { delete t.fieldValues[field.id]; });
+        if (workingTemplate) delete workingTemplate.fieldValues[field.id];
+        saveDB();
+        renderAll();
+      });
 
-    const presetInput = document.createElement('input');
-    presetInput.type = 'number';
-    presetInput.className = 'panel-field-preset';
-    presetInput.value = field.defaultValue || 0;
-    presetInput.min = '0';
-    presetInput.step = '0.01';
-    presetInput.title = 'Default value for this field';
-    presetInput.addEventListener('change', () => {
-      field.defaultValue = parseFloat(presetInput.value) || 0;
-      saveDB();
+      row.appendChild(nameEl);
+      row.appendChild(catSel);
+      row.appendChild(presetInput);
+      row.appendChild(delBtn);
+      list.appendChild(row);
     });
-    presetInput.addEventListener('click', e => e.stopPropagation());
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'panel-delete-btn';
-    delBtn.innerHTML = trashIcon();
-    delBtn.title = 'Delete field';
-    delBtn.addEventListener('click', () => {
-      if (!confirm(`Delete field "${field.name}"? This will remove it from all templates.`)) return;
-      db.fields = db.fields.filter(f => f.id !== field.id);
-      db.templates.forEach(t => { delete t.fieldValues[field.id]; });
-      if (workingTemplate) delete workingTemplate.fieldValues[field.id];
-      saveDB();
-      renderAll();
-    });
-
-    row.appendChild(nameEl);
-    row.appendChild(presetInput);
-    row.appendChild(delBtn);
-    list.appendChild(row);
   });
 }
 
@@ -1129,6 +1322,7 @@ document.getElementById('newFieldInput').addEventListener('keydown', e => {
 function addNewField() {
   const input = document.getElementById('newFieldInput');
   const presetInput = document.getElementById('newFieldPreset');
+  const catSelect = document.getElementById('newFieldCategory');
   const name = input.value.trim();
   if (!name) return;
   if (db.fields.some(f => f.name.toLowerCase() === name.toLowerCase())) {
@@ -1136,7 +1330,8 @@ function addNewField() {
     return;
   }
   const defaultValue = parseFloat(presetInput.value) || 0;
-  const newField = { id: genId(), name, order: db.fields.length, defaultValue };
+  const category = catSelect.value || CATEGORIES[0];
+  const newField = { id: genId(), name, category, order: db.fields.length, defaultValue };
   db.fields.push(newField);
   // Add to all templates (disabled, with default value)
   db.templates.forEach(t => { t.fieldValues[newField.id] = { enabled: false, value: defaultValue }; });
@@ -1271,6 +1466,18 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
+
+// Populate the "new field" category select
+(function () {
+  const sel = document.getElementById('newFieldCategory');
+  CATEGORIES.forEach((cat, i) => {
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    if (i === 0) opt.selected = true;
+    sel.appendChild(opt);
+  });
+})();
 
 loadDB();
 
